@@ -5,4 +5,5 @@
     <string name="pref_file">tkoh_pref</string>
     <string name="broker_address">broker_address</string>
     <string name="broker_port">broker_port</string>
+    <string name="broker_state">broker_state</string>
 </resources>

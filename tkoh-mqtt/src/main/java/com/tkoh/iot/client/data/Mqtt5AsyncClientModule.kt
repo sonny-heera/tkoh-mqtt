@@ -1,9 +1,11 @@
 package com.tkoh.iot.client.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import com.hivemq.client.mqtt.MqttClientState
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client
 import com.tkoh.iot.client.R
@@ -15,9 +17,8 @@ import dagger.hilt.components.SingletonComponent
 import timber.log.Timber
 import java.util.UUID
 
-const val VALID_PORT_LEFT_ENDPOINT = 1
-const val VALID_PORT_RIGHT_ENDPOINT = 65535
-const val PORT_NOT_SET = -1
+const val ADDRESS_NOT_SET = "Broker address not set"
+const val PORT_NOT_SET = 0
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -26,45 +27,67 @@ object Mqtt5AsyncClientModule {
     @Provides
     fun provideMqtt5AsyncClient(
         @ApplicationContext context: Context
-    ) : Mqtt5AsyncClient? {
-        val encryptedSharedPreferences = getEncryptedSharedPreferences(context)
-        val brokerAddress = getBrokerAddress(encryptedSharedPreferences, context)
-        val brokerPort = getBrokerPort(encryptedSharedPreferences, context)
+    ) : Mqtt5AsyncClient {
+        val brokerAddress = getBrokerAddress(context)
+        val brokerPort = getBrokerPort(context)
 
-        return if (brokerAddress != null && brokerPort != PORT_NOT_SET
-            && brokerPort >= VALID_PORT_LEFT_ENDPOINT && brokerPort <= VALID_PORT_RIGHT_ENDPOINT) {
-            createClient(brokerAddress, brokerPort, context)
+        return createClient(brokerAddress, brokerPort, context)
+    }
+
+    private fun getBrokerAddress(context: Context) : String? {
+        return getEncryptedSharedPreferences(context)
+            .getString(context.getString(R.string.broker_address), null)
+    }
+
+    private fun getBrokerPort(context: Context) : Int {
+        return getEncryptedSharedPreferences(context)
+            .getInt(context.getString(R.string.broker_port), PORT_NOT_SET)
+    }
+
+    private fun createClient(brokerAddress : String?, brokerPort : Int,
+            context: Context) : Mqtt5AsyncClient {
+        return if (brokerAddress != null && brokerPort != PORT_NOT_SET) {
+            buildAndConnectClient(brokerAddress, brokerPort, context)
         } else {
-            return Mqtt5Client.builder()
+            getEncryptedSharedPreferences(context).edit()
+                .putString(context.getString(R.string.broker_state),
+                    MqttClientState.DISCONNECTED.toString()).apply()
+
+            Mqtt5Client.builder()
                 .identifier(UUID.randomUUID().toString())
+                .serverHost(ADDRESS_NOT_SET)
+                .serverPort(PORT_NOT_SET)
                 .buildAsync()
         }
     }
 
-    private fun getBrokerAddress(sharedPreferences: SharedPreferences, context: Context) : String? {
-        return sharedPreferences.getString(context.getString(R.string.broker_address), null)
-    }
+    @SuppressLint("BinaryOperationInTimber")
+    private fun buildAndConnectClient(brokerAddress: String, brokerPort: Int, context: Context) :
+            Mqtt5AsyncClient {
+        val sharedPreferences = getEncryptedSharedPreferences(context)
 
-    private fun getBrokerPort(sharedPreferences: SharedPreferences, context: Context) : Int {
-        return sharedPreferences.getInt(context.getString(R.string.broker_port), PORT_NOT_SET)
-    }
-
-    private fun createClient(brokerAddress : String, brokerPort : Int,
-            context: Context) : Mqtt5AsyncClient? {
-        val client : Mqtt5AsyncClient = Mqtt5Client.builder()
+        val client = Mqtt5Client.builder()
             .identifier(UUID.randomUUID().toString())
             .serverHost(brokerAddress)
             .serverPort(brokerPort)
             .buildAsync()
 
+        sharedPreferences.edit().putString(context.getString(R.string.broker_state),
+            MqttClientState.CONNECTING.toString()).apply()
+
         client.connect()
             .whenComplete { ack, throwable ->
                 if (throwable != null) {
                     Timber.e(throwable, "Problem occurred while connecting to the broker")
-                    clearSelectedBrokerPreferences(context)
+                    sharedPreferences.edit().putString(context.getString(R.string.broker_state),
+                        MqttClientState.DISCONNECTED.toString()).apply()
+                    TODO("Retry depending on reason")
                 } else {
-                    Timber.d("Successfully connected to the following broker: " +
-                            "$brokerAddress:$brokerPort with ack: $ack")
+                    Timber.d("Successfully connected to the following broker: "
+                            + "$brokerAddress:$brokerPort with ack: $ack")
+                    sharedPreferences.edit().putString(context.getString(R.string.broker_state),
+                        MqttClientState.CONNECTED.toString()).apply()
+                    TODO("Check the ack to ensure that we are indeed connected")
                 }
             }
 
@@ -79,12 +102,5 @@ object Mqtt5AsyncClientModule {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
-    }
-
-    private fun clearSelectedBrokerPreferences(context: Context) {
-        val sharedPreferences: SharedPreferences = getEncryptedSharedPreferences(context)
-
-        sharedPreferences.edit().remove(context.getString(R.string.broker_address)).apply()
-        sharedPreferences.edit().remove(context.getString(R.string.broker_port)).apply()
     }
 }
