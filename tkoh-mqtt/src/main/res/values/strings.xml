@@ -6,4 +6,7 @@
     <string name="broker_address">broker_address</string>
     <string name="broker_port">broker_port</string>
     <string name="broker_state">broker_state</string>
+    <string name="broker_address_heading">Broker Address:</string>
+    <string name="broker_port_heading">Broker Port:</string>
+    <string name="connect_button_text">connect</string>
 </resources>
