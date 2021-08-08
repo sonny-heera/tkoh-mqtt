@@ -8,6 +8,10 @@ plugins {
 android {
     compileSdk 30
 
+    buildFeatures {
+        viewBinding true
+    }
+
     defaultConfig {
         applicationId "com.tkoh.iot.client"
         minSdk 24

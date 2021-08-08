@@ -8,9 +8,10 @@ import com.hivemq.client.mqtt.MqttClientState
 import com.tkoh.iot.client.R
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
-import org.junit.Assert.*
 
 private const val PREF_FILE_KEY = "pref_file"
 private const val BROKER_ADDRESS_KEY = "broker_address"
