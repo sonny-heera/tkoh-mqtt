@@ -5,7 +5,6 @@ import android.content.Context
 import com.hivemq.client.mqtt.MqttClientState
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client
-import com.tkoh.iot.client.R
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,9 +35,7 @@ object Mqtt5AsyncClientModule {
         return if (brokerAddress != null && brokerPort != PORT_NOT_SET) {
             buildAndConnectClient(brokerAddress, brokerPort, context)
         } else {
-            EncryptedSharedPreferencesUtils.getEncryptedSharedPreferences(context).edit()
-                .putString(context.getString(R.string.broker_state),
-                    MqttClientState.DISCONNECTED.toString()).apply()
+            EncryptedSharedPreferencesUtils.setBrokerState(MqttClientState.DISCONNECTED.toString(), context)
 
             Mqtt5Client.builder()
                 .identifier(UUID.randomUUID().toString())
@@ -51,30 +48,25 @@ object Mqtt5AsyncClientModule {
     @SuppressLint("BinaryOperationInTimber")
     private fun buildAndConnectClient(brokerAddress: String, brokerPort: Int, context: Context) :
             Mqtt5AsyncClient {
-        val sharedPreferences = EncryptedSharedPreferencesUtils.getEncryptedSharedPreferences(context)
-
         val client = Mqtt5Client.builder()
             .identifier(UUID.randomUUID().toString())
             .serverHost(brokerAddress)
             .serverPort(brokerPort)
             .buildAsync()
 
-        sharedPreferences.edit().putString(context.getString(R.string.broker_state),
-            MqttClientState.CONNECTING.toString()).apply()
+        EncryptedSharedPreferencesUtils.setBrokerState(MqttClientState.CONNECTING.toString(), context)
 
         client.connect()
             .whenComplete { ack, throwable ->
                 if (throwable != null) {
                     Timber.e(throwable, "Problem occurred while connecting to the broker "
                             + "at: $brokerAddress:$brokerPort")
-                    sharedPreferences.edit().putString(context.getString(R.string.broker_state),
-                        MqttClientState.DISCONNECTED.toString()).apply()
+                    EncryptedSharedPreferencesUtils.setBrokerState(MqttClientState.DISCONNECTED.toString(), context)
                     TODO("Retry depending on reason")
                 } else {
                     Timber.d("Successfully connected to the following broker: "
                             + "$brokerAddress:$brokerPort with ack: $ack")
-                    sharedPreferences.edit().putString(context.getString(R.string.broker_state),
-                        MqttClientState.CONNECTED.toString()).apply()
+                    EncryptedSharedPreferencesUtils.setBrokerState(MqttClientState.CONNECTED.toString(), context)
                     TODO("Check the ack to ensure that we are indeed connected")
                 }
             }
