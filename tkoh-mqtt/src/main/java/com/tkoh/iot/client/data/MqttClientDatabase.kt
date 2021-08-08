@@ -7,4 +7,5 @@ import androidx.room.RoomDatabase
 abstract class MqttClientDatabase : RoomDatabase() {
     abstract fun brokerDao(): BrokerDao
     abstract fun topicDao(): TopicDao
+    abstract fun savedMessageDao(): SavedMessageDao
 }

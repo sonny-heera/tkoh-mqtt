@@ -12,12 +12,12 @@ interface BrokerDao {
     @Insert(onConflict = REPLACE)
     fun save(broker: Broker)
 
-    @Query("DELETE FROM broker WHERE name = :name")
+    @Query("delete from broker where name = :name")
     fun remove(name: String)
 
-    @Query("SELECT * FROM broker WHERE name = :name")
+    @Query("select * from broker where name = :name")
     fun load(name: String): Flow<Broker>
 
-    @Query("SELECT * FROM broker")
+    @Query("select * from broker")
     fun all(): Flow<List<Broker>>
 }

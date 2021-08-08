@@ -1,7 +1,6 @@
 package com.tkoh.iot.client.data
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy.REPLACE
 import androidx.room.Query
@@ -13,12 +12,12 @@ interface TopicDao {
     @Insert(onConflict = REPLACE)
     fun save(topic: Topic)
 
-    @Delete
-    fun remove(name: Topic)
+    @Query("delete from topic where name = :name")
+    fun remove(name: String)
 
-    @Query("SELECT * FROM topic WHERE name = :name")
+    @Query("select * from topic where name = :name")
     fun get(name: String): Flow<Topic>
 
-    @Query("SELECT * FROM topic")
+    @Query("select * from topic")
     fun all(): Flow<List<Topic>>
 }
